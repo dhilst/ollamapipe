@@ -5,6 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "colorama>=0.4.6",
+    "langchain>=0.3.26",
+    "langchain-ollama>=0.3.3",
     "ollama>=0.5.1",
     "ollama-chat>=0.9.65",
+    "pygame>=2.6.1",
 ]

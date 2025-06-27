@@ -50,10 +50,11 @@ async def write_stream(stream, queue, name=""):
             print(f"[Bridge] Error writing to {name}: {e}")
             break
 
-async def ollama_processor(model_name, command_output_queue, ollama_response_queue):
+async def ollama_processor(model_name, command_output_queue, ollama_response_queue, num_predict: int = -1):
     """
     Reads command output, sends it to Ollama, and puts Ollama's response
     into a queue for the command's input.
+    :param num_predict: The maximum number of tokens to predict. Use -1 for no limit.
     """
     print(f"[Bridge] Starting Ollama processor for model: {model_name}...")
     client = ollama.AsyncClient()
@@ -81,10 +82,15 @@ async def ollama_processor(model_name, command_output_queue, ollama_response_que
             # Add command output to messages for Ollama
             messages.append({"role": "user", "content": command_line})
 
+            # Prepare options for the chat request
+            options = {}
+            if num_predict != -1:
+                options['num_predict'] = num_predict
+
             # Get streaming response from Ollama
             full_response_content = ""
             try:
-                stream = await client.chat(model=model_name, messages=messages, stream=True)
+                stream = await client.chat(model=model_name, messages=messages, stream=True, options=options)
                 print(f"[Ollama Response]: ", end="", flush=True)
                 async for chunk in stream:
                     content_part = chunk['message']['content']
@@ -161,6 +167,13 @@ async def main():
         default="llama3", # Default Ollama model
         help="The Ollama model to use (e.g., 'llama3', 'mistral'). Ensure it's pulled locally."
     )
+    parser.add_argument(
+        "--num-predict",
+        default=-1,
+        type=int,
+        help="The num_predict argument, limiting the output of the model"
+    )
+
 
     parser.add_argument(
         "--end-of-prompt",
@@ -208,7 +221,7 @@ async def main():
 
         # Create task for Ollama processing
         ollama_proc_task = asyncio.create_task(
-            ollama_processor(ollama_model, command_output_queue, ollama_response_queue)
+            ollama_processor(ollama_model, command_output_queue, ollama_response_queue, args.num_predict)
         )
 
         # Create task for user input (to gracefully exit)
